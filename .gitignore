@@ -3,8 +3,23 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Mac file system
+.DS_Store
+
 # C extensions
 *.so
+
+#setting
+setting.txt
+
+#vscode
+.vscode/
+
+#pycharm
+.idea/
+
+#trash
+불용어.txt
 
 # Distribution / packaging
 .Python
