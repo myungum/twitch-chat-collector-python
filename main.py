@@ -1,5 +1,4 @@
 from server import Server
-import asyncio
 
 with open('setting.txt', 'r') as f:
     db_host, db_port, db_name = f.readline().split()
@@ -7,5 +6,6 @@ with open('setting.txt', 'r') as f:
     token, user_name = f.readline().split()
     client_id, client_secret = f.readline().split()
 
-s = Server(chat_host, int(chat_port), token, user_name, db_host, int(db_port), db_name)
+s = Server(chat_host, int(chat_port), token,
+           user_name, db_host, int(db_port), db_name)
 s.start()

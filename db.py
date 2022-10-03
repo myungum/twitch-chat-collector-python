@@ -4,6 +4,7 @@ from threading import Thread
 from multiprocessing import Queue
 import time
 
+
 class DB:
     def __init__(self, db_host: str, db_port: int, db_name: str, status: dict) -> None:
         status['db_host'] = db_host
@@ -16,14 +17,15 @@ class DB:
         self.queue_chat = Queue()
         self.client = MongoClient(host=db_host, port=db_port)
 
-        self.process_push_log = Thread(target=self.__push, args=(status, 'log', self.queue_log, 1))
+        self.process_push_log = Thread(
+            target=self.__push, args=(status, 'log', self.queue_log, 1))
         self.process_push_log.daemon = True
         self.process_push_log.start()
 
-        self.process_push_chat = Thread(target=self.__push, args=(status, 'chat', self.queue_chat, 1))
+        self.process_push_chat = Thread(
+            target=self.__push, args=(status, 'chat', self.queue_chat, 1))
         self.process_push_chat.daemon = True
         self.process_push_chat.start()
-
 
     def __push(self, status: dict, collection_name: str, queue_chat: Queue, period: int):
         db_host = status['db_host']
@@ -35,7 +37,7 @@ class DB:
 
         while True:
             start_time = datetime.now()
-            
+
             if not queue_chat.empty():
                 docs = []
                 while not queue_chat.empty():

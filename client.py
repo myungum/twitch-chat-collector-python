@@ -1,82 +1,65 @@
 import socket
 from db import DB
 from datetime import datetime
-from multiprocessing import Process, Queue
-import asyncio
+from multiprocessing import Queue
+import traceback
 
 
 class Client:
-    def __init__(self, host: str, port: int, token: str, user_name: str, channel: str, db: DB, status: dict) -> None:
-        status['host'] = host
-        status['port'] = port
-        status['token'] = token
-        status['user_name'] = user_name
-        status['channel'] = channel
-        status['stopped'] = False
-        self.status = status
-
+    def __init__(self, channel: str, conn_info: dict, queue_chat: Queue) -> None:
+        super().__init__()
         self.channel = channel
-        self.db = db
-        self.is_stopped = False
+        self.host = conn_info['chat_host']
+        self.port = conn_info['chat_port']
+        self.token = conn_info['chat_token']
+        self.user_name = conn_info['chat_user_name']
+        self.sck = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.queue_chat = queue_chat
+        self.stopped = False
+        self.connected = False
+        self.buffer = bytearray()
 
-    def stopped(self):
-        return self.status['stopped']
+    def split(self, data):
+        for i in range(len(data) - 1):
+            if data[i] == b'\r'[0] and data[i + 1] == b'\n'[0]:
+                return i
+        return -1
 
-    def start(self):
-        self.process = Process(target=self.__run, args=(self.status, self.db.queue_chat))
-        self.process.daemon = True
-        self.process.start()
+    def connect(self):
+        self.sck.connect((self.host, self.port))
+        self.sck.send('CAP REQ :twitch.tv/commands\r\n'.encode('utf-8'))
+        self.sck.send('PASS {}\r\n'.format(self.token).encode('utf-8'))
+        self.sck.send('NICK {}\r\n'.format(self.user_name).encode('utf-8'))
+        self.sck.send('JOIN #{}\r\n'.format(self.channel).encode('utf-8'))
 
-    def stop(self):
-        self.process.terminate()
-        self.process.join()
-        self.is_stopped = True
+    def receive(self):
+        try:
+            received = self.sck.recv(1024 * 8)
+            if len(received) == 0:
+                self.stopped = True
+                return
 
-    def __run(self, status: dict, queue_chat: Queue):
-        async def receive(status: dict, queue_chat: Queue):
-            host = status['host']
-            port = status['port']
-            token = status['token']
-            user_name = status['user_name']
-            channel = status['channel']
-            reader: asyncio.StreamReader
-            writer: asyncio.StreamWriter
-            
-            def split(data):
-                for i in range(len(data) - 1):
-                    if data[i] == b'\r'[0] and data[i + 1] == b'\n'[0]:
-                        return i 
-                return -1
-            
-            try:
-                reader, writer = await asyncio.open_connection(host, port)
+            self.buffer += received
+            while True:
+                idx = self.split(self.buffer)
+                if idx == -1:
+                    return
 
-                writer.write('CAP REQ :twitch.tv/commands\r\n'.encode('utf-8'))
-                writer.write('PASS {}\r\n'.format(token).encode('utf-8'))
-                writer.write('NICK {}\r\n'.format(user_name).encode('utf-8'))
-                writer.write('JOIN #{}\r\n'.format(channel).encode('utf-8'))
-                await writer.drain()
+                message, self.buffer = self.buffer[:idx].decode(
+                    'utf-8'), self.buffer[idx+2:]
+                # ping/pong
+                if message[:4] == 'PING':
+                    self.sck.send('PONG{}\r\n'.format(
+                        message[4:]).encode('utf-8'))
 
-                buffer = bytearray()
-                while True:
-                    buffer += await reader.read(1024 * 64)
-                    idx = split(buffer)
-                    if idx != -1:
-                        message, buffer = buffer[:idx].decode('utf-8'), buffer[idx+2:]
+                chat = {
+                    'channel': self.channel,
+                    'message': message,
+                    'datetime': datetime.now()
+                }
+                self.queue_chat.put(chat)
 
-                        # ping/pong
-                        if message[:4] == 'PING':
-                            writer.write('PONG{}\r\n'.format(message[4:]).encode('utf-8'))
-                            await writer.drain()
-
-                        queue_chat.put({
-                            'channel': channel,
-                            'message': message,
-                            'datetime': datetime.now()
-                            })
-
-
-            except Exception as e:
-                print(str(e))
-                status['stopped'] = True
-        asyncio.run(receive(status, queue_chat))
+        except Exception:
+            traceback.print_exc()
+            self.stopped = True
+            return 0
