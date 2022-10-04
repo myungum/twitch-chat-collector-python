@@ -1,15 +1,14 @@
 from multiprocessing import Process, Queue, Manager, Value
 from client import Client
-from db import DB
 import selectors
 
 
 class Worker:
-    def __init__(self, worker_no: int, conn_info: dict, db: DB) -> None:
+    def __init__(self, worker_no: int, conn_info: dict, queue_chat: Queue) -> None:
         self.worker_no = Manager().Value('i', worker_no)
         self.conn_info = conn_info
         self.queue_add = Queue()
-        self.queue_chat = db.queue_chat
+        self.queue_chat = queue_chat
         self.channels = Manager().dict()
 
     def start(self):
@@ -17,10 +16,6 @@ class Worker:
             self.worker_no, self.conn_info, self.channels, self.queue_add, self.queue_chat))
         self.process.daemon = True
         self.process.start()
-
-    # def start_stream(self, conn_info: dict, channels: dict, queue_add: Queue, queue_chat: Queue):
-    #     asyncio.run(self.run_stream(conn_info, channels, queue_add, queue_chat))
-    #     print('error')
 
     def run(self, worker_no: Value, conn_info: dict, channels: dict, queue_add: Queue, queue_chat: Queue):
         print('worker', worker_no.value, 'started')
@@ -49,11 +44,11 @@ class Worker:
                     client.connect()
                     clients.append(client)
                     channels[channel] = 0
-            # 클라이언트의 접속 또는 접속된 클라이언트의 데이터 요청을 감시
+            # get read events
             events = sel.select(timeout=1)
             for key, mask in events:
-                callback = key.data  # 실행할 함수
-                callback()  # 이벤트가 발생한 소켓을 인수로 실행할 함수를 실행한다.
+                receive = key.data  # callback function
+                receive()
 
     def add(self, channel):
         self.queue_add.put(channel)

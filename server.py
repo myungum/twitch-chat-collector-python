@@ -41,7 +41,7 @@ class Server:
 
     def start(self):
         for i in range(multiprocessing.cpu_count()):
-            worker = Worker(i, self.conn_info, self.db)
+            worker = Worker(i, self.conn_info, self.db.queue_chat)
             worker.start()
             self.workers.append(worker)
 

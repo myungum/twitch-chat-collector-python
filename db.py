@@ -13,19 +13,13 @@ class DB:
         self.status = status
 
         # log
-        self.queue_log = Queue()
         self.queue_chat = Queue()
         self.client = MongoClient(host=db_host, port=db_port)
 
-        self.process_push_log = Thread(
-            target=self.__push, args=(status, 'log', self.queue_log, 1))
-        self.process_push_log.daemon = True
-        self.process_push_log.start()
-
-        self.process_push_chat = Thread(
+        self.thread_push_chat = Thread(
             target=self.__push, args=(status, 'chat', self.queue_chat, 1))
-        self.process_push_chat.daemon = True
-        self.process_push_chat.start()
+        self.thread_push_chat.daemon = True
+        self.thread_push_chat.start()
 
     def __push(self, status: dict, collection_name: str, queue_chat: Queue, period: int):
         db_host = status['db_host']
@@ -43,7 +37,7 @@ class DB:
                 while not queue_chat.empty():
                     doc = queue_chat.get()
                     docs.append(doc)
-                print(len(docs))
+                print('{} | '.format(len(docs)), end='', flush=True)
                 collection.insert_many(docs)
 
             elapsed_time = datetime.now() - start_time

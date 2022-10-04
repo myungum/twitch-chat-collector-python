@@ -1,5 +1,4 @@
 import socket
-from db import DB
 from datetime import datetime
 from multiprocessing import Queue
 import traceback
