@@ -49,8 +49,3 @@ class DB:
             elapsed_time = datetime.now() - start_time
             if period > elapsed_time.seconds:
                 time.sleep(period - elapsed_time.seconds)
-
-    def get_live_channels(self):
-        docs = self.client[self.status['db_name']]['live_channels'].find()
-        channels = [doc['user_login'] for doc in docs]
-        return channels

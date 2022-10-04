@@ -1,12 +1,16 @@
+from twitchapi import TwitchAPI
 from db import DB
 import time
 from multiprocessing import Manager
 from worker import Worker
+import multiprocessing
 
+UPDATE_PERIOD = 60 # 1 minutes
 
 class Server:
     def __init__(self, chat_host: str, chat_port: int,
                  chat_token: str, chat_user_name: str,
+                 client_id: str, client_secret: str,
                  db_host: str, db_port: int, db_name: str) -> None:
         self.manager = Manager()
         self.conn_info = self.manager.dict({
@@ -19,7 +23,7 @@ class Server:
             'db_name': db_name
         })
         self.clients = self.manager.dict()
-
+        self.api = TwitchAPI(client_id, client_secret)
         self.db = DB(db_host, db_port, db_name, dict())
         self.workers = []
 
@@ -36,7 +40,7 @@ class Server:
         lazy_worker.add(channel)
 
     def start(self):
-        for i in range(10):  # (multiprocessing.cpu_count()):
+        for i in range(multiprocessing.cpu_count()):
             worker = Worker(i, self.conn_info, self.db)
             worker.start()
             self.workers.append(worker)
@@ -45,14 +49,12 @@ class Server:
 
         while True:
             # add
-            channels = self.db.get_live_channels()[:100]
+            channels = self.api.get_channels()
             for channel in channels:
                 if not self.contains(channel):
                     self.add(channel)
                 time.sleep(0.1)
-
-            time.sleep(1)
-            print('.', end='')
+            time.sleep(UPDATE_PERIOD)
 
     def stop(self):
         for channel, client in self.clients.items():
