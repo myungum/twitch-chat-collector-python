@@ -6,12 +6,14 @@ from worker import Worker
 import multiprocessing
 
 UPDATE_PERIOD = 60 # 1 minutes
+MAX_CHANNEL = 300
 
 class Server:
     def __init__(self, chat_host: str, chat_port: int,
                  chat_token: str, chat_user_name: str,
                  client_id: str, client_secret: str,
-                 db_host: str, db_port: int, db_name: str) -> None:
+                 db_host: str, db_port: int, db_name: str,
+                 max_channel=MAX_CHANNEL) -> None:
         self.manager = Manager()
         self.conn_info = self.manager.dict({
             'chat_host': chat_host,
@@ -26,6 +28,7 @@ class Server:
         self.api = TwitchAPI(client_id, client_secret)
         self.db = DB(db_host, db_port, db_name, dict())
         self.workers = []
+        self.max_channel = max_channel
 
     def contains(self, channel):
         for worker in self.workers:
@@ -49,7 +52,7 @@ class Server:
 
         while True:
             # add
-            channels = self.api.get_channels()
+            channels = self.api.get_channels(max_channel=self.max_channel)
             for channel in channels:
                 if not self.contains(channel):
                     self.add(channel)

@@ -65,6 +65,6 @@ class TwitchAPI:
                     print(res.text)
         return channels
 
-    def get_channels(self):
-        channels = self.get_channels_detail()
+    def get_channels(self, min_viewer=MIN_VIEWER, max_channel=MAX_CHANNEL):
+        channels = self.get_channels_detail(min_viewer=min_viewer, max_channel=max_channel)
         return [channel['user_login'] for channel in channels]
