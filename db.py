@@ -15,11 +15,11 @@ class DB:
         # log
         self.queue_chat = Queue()
         self.client = MongoClient(host=db_host, port=db_port)
-
-        self.thread_push_chat = Thread(
+        
+        self.thread = Thread(
             target=self.__push, args=(status, 'chat', self.queue_chat, 1))
-        self.thread_push_chat.daemon = True
-        self.thread_push_chat.start()
+        self.thread.daemon = True
+        self.thread.start()
 
     def __push(self, status: dict, collection_name: str, queue_chat: Queue, period: int):
         db_host = status['db_host']

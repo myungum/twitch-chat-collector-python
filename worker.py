@@ -1,6 +1,8 @@
 from multiprocessing import Process, Queue, Manager, Value
 from client import Client
 import selectors
+import logging
+from loghandler import LogHandler
 
 
 class Worker:
@@ -21,6 +23,12 @@ class Worker:
         print('worker', worker_no.value, 'started')
         clients = []
         sel = selectors.DefaultSelector()
+         # logger
+        logger = logging.getLogger('root')
+        logger.setLevel(logging.DEBUG)
+        logHandler = LogHandler(
+            level=logging.DEBUG, db_host=conn_info['db_host'], db_port=conn_info['db_port'], db_name=conn_info['db_name'])
+        logger.addHandler(logHandler)
 
         while True:
             clients_remove = []
@@ -29,7 +37,7 @@ class Worker:
                     clients_remove.append(client)
 
             for client in clients_remove:
-                print('worker', worker_no.value, '-=', client.channel)
+                logger.debug('worker {} -= {}'.format(worker_no.value, client.channel))
                 sel.unregister(client.sck)
                 clients.remove(client)
                 del channels[client.channel]
@@ -37,7 +45,7 @@ class Worker:
             while not queue_add.empty():
                 channel = queue_add.get()
                 if channel not in channels:
-                    print('worker', worker_no.value, '+=', channel)
+                    logger.debug('worker {} -= {}'.format(worker_no.value, channel))
                     client = Client(channel, conn_info, queue_chat)
                     sel.register(client.sck, selectors.EVENT_READ,
                                  client.receive)

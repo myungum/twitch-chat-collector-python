@@ -4,9 +4,12 @@ import time
 from multiprocessing import Manager
 from worker import Worker
 import multiprocessing
+import logging
+from loghandler import LogHandler
 
-UPDATE_PERIOD = 60 # 1 minutes
+UPDATE_PERIOD = 60  # 1 minutes
 MAX_CHANNEL = 300
+
 
 class Server:
     def __init__(self, chat_host: str, chat_port: int,
@@ -29,6 +32,12 @@ class Server:
         self.db = DB(db_host, db_port, db_name, dict())
         self.workers = []
         self.max_channel = max_channel
+        # logger
+        self.logger = logging.getLogger('root')
+        self.logger.setLevel(logging.DEBUG)
+        self.logHandler = LogHandler(
+            level=logging.DEBUG, db_host=db_host, db_port=db_port, db_name=db_name)
+        self.logger.addHandler(self.logHandler)
 
     def contains(self, channel):
         for worker in self.workers:
@@ -43,12 +52,13 @@ class Server:
         lazy_worker.add(channel)
 
     def start(self):
+        self.logger.info('server start')
         for i in range(multiprocessing.cpu_count()):
             worker = Worker(i, self.conn_info, self.db.queue_chat)
             worker.start()
             self.workers.append(worker)
 
-        print(len(self.workers), 'workers ready')
+        self.logger.info('{} workers ready'.format(len(self.workers)))
 
         while True:
             # add
