@@ -6,25 +6,17 @@ import time
 
 
 class DB:
-    def __init__(self, db_host: str, db_port: int, db_name: str, status: dict) -> None:
-        status['db_host'] = db_host
-        status['db_port'] = db_port
-        status['db_name'] = db_name
-        self.status = status
-
-        # log
+    def __init__(self, conn_info: dict) -> None:
         self.queue_chat = Queue()
-        self.client = MongoClient(host=db_host, port=db_port)
-        
         self.thread = Thread(
-            target=self.__push, args=(status, 'chat', self.queue_chat, 1))
+            target=self.__push, args=(conn_info, 'chat', self.queue_chat, 1))
         self.thread.daemon = True
         self.thread.start()
 
-    def __push(self, status: dict, collection_name: str, queue_chat: Queue, period: int):
-        db_host = status['db_host']
-        db_port = status['db_port']
-        db_name = status['db_name']
+    def __push(self, conn_info: dict, collection_name: str, queue_chat: Queue, period: int):
+        db_host = conn_info['db_host']
+        db_port = conn_info['db_port']
+        db_name = conn_info['db_name']
 
         client = MongoClient(host=db_host, port=db_port)
         collection = client[db_name][collection_name]

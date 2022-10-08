@@ -13,20 +13,20 @@ import sys
 
 
 class LogHandler(logging.Handler):
-    def __init__(self, level=logging.DEBUG,
-                 db_host='localhost', db_port=27017, db_name=None) -> None:
+    def __init__(self, level=logging.DEBUG, conn_info: dict = None) -> None:
         logging.Handler.__init__(self, level)
 
         self.queue = Queue()
+
+        db_host = conn_info['db_host']
+        db_port = conn_info['db_port']
+        db_name = conn_info['db_name']
         self.client = MongoClient(host=db_host, port=db_port)
         self.collection = self.client[db_name]['log']
 
         self.thread = Thread(target=self.__push, args=(self.queue, ))
         self.thread.daemon = True
         self.thread.start()
-        
-        formatter = logging.Formatter("%(asctime)s %(levelname)s [%(name)s] [%(filename)s:%(lineno)d] - %(message)s")
-        logging.Handler.setFormatter(self, formatter)
 
     def __push(self, queue: Queue):
         while True:

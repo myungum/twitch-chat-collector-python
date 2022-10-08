@@ -12,31 +12,20 @@ MAX_CHANNEL = 300
 
 
 class Server:
-    def __init__(self, chat_host: str, chat_port: int,
-                 chat_token: str, chat_user_name: str,
-                 client_id: str, client_secret: str,
-                 db_host: str, db_port: int, db_name: str,
+    def __init__(self, conn_info: dict,
                  max_channel=MAX_CHANNEL) -> None:
         self.manager = Manager()
-        self.conn_info = self.manager.dict({
-            'chat_host': chat_host,
-            'chat_port': chat_port,
-            'chat_token': chat_token,
-            'chat_user_name': chat_user_name,
-            'db_host': db_host,
-            'db_port': db_port,
-            'db_name': db_name
-        })
+        self.conn_info = self.manager.dict(conn_info)
         self.clients = self.manager.dict()
-        self.api = TwitchAPI(client_id, client_secret)
-        self.db = DB(db_host, db_port, db_name, dict())
+
+        self.api = TwitchAPI(self.conn_info)
+        self.db = DB(conn_info)
         self.workers = []
         self.max_channel = max_channel
         # logger
         self.logger = logging.getLogger('root')
         self.logger.setLevel(logging.DEBUG)
-        self.logHandler = LogHandler(
-            level=logging.DEBUG, db_host=db_host, db_port=db_port, db_name=db_name)
+        self.logHandler = LogHandler(logging.DEBUG, conn_info)
         self.logger.addHandler(self.logHandler)
 
     def contains(self, channel):

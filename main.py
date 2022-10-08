@@ -1,11 +1,9 @@
 from server import Server
+import json
 
-with open('setting.txt', 'r') as f:
-    db_host, db_port, db_name = f.readline().split()
-    chat_host, chat_port = f.readline().split()
-    token, user_name = f.readline().split()
-    client_id, client_secret = f.readline().split()
 
-s = Server(chat_host, int(chat_port), token, user_name,
-           client_id, client_secret, db_host, int(db_port), db_name)
+with open('settings.json', 'r') as file:
+    conn_info = dict(json.load(file))
+
+s = Server(conn_info)
 s.start()

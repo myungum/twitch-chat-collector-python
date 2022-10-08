@@ -26,8 +26,7 @@ class Worker:
          # logger
         logger = logging.getLogger('root')
         logger.setLevel(logging.DEBUG)
-        logHandler = LogHandler(
-            level=logging.DEBUG, db_host=conn_info['db_host'], db_port=conn_info['db_port'], db_name=conn_info['db_name'])
+        logHandler = LogHandler(logging.DEBUG, conn_info)
         logger.addHandler(logHandler)
 
         while True:

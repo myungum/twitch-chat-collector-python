@@ -1,5 +1,7 @@
 import requests
 from datetime import datetime, timedelta
+import logging
+from loghandler import LogHandler
 
 MIN_VIEWER = 100
 MAX_CHANNEL = 200
@@ -17,10 +19,16 @@ class Token:
 
 class TwitchAPI:
 
-    def __init__(self, client_id: str, client_secret: str):
-        self.client_id = client_id
-        self.client_secret = client_secret
+    def __init__(self, conn_info: dict):
+        self.client_id = conn_info['client_id']
+        self.client_secret = conn_info['client_secret']
         self.token: Token = None
+
+       # logger
+        self.logger = logging.getLogger('root')
+        self.logger.setLevel(logging.DEBUG)
+        self.logHandler = LogHandler(logging.DEBUG, conn_info)
+        self.logger.addHandler(self.logHandler)
 
     def get_token(self):
         # if token is unavailable, then make token
@@ -43,28 +51,32 @@ class TwitchAPI:
 
         channel_name_set = set()
         channels = []
-        after = ''
-        with requests.session() as s:
-            for _ in range(MAX_REQUEST):
-                res = s.get(URL_GET_STREAMS.format(
-                    100, after), headers=headers)
-                # success
-                if res.status_code == 200:
-                    after = res.json()['pagination']['cursor']
-                    for channel in res.json()['data']:
-                        channel_name = channel['user_login']
-                        # if channel is unique, then append to list
-                        if channel_name not in channel_name_set and channel['viewer_count'] >= min_viewer:
-                            if len(channel_name_set) < max_channel:
-                                channel_name_set.add(channel_name)
-                                channels.append(channel)
-                            else:
-                                return channels
-                # fail
-                else:
-                    print(res.text)
+        try:
+            after = ''
+            with requests.session() as s:
+                for _ in range(MAX_REQUEST):
+                    res = s.get(URL_GET_STREAMS.format(
+                        100, after), headers=headers)
+                    # success
+                    if res.status_code == 200:
+                        after = res.json()['pagination']['cursor']
+                        for channel in res.json()['data']:
+                            channel_name = channel['user_login']
+                            # if channel is unique, then append to list
+                            if channel_name not in channel_name_set and channel['viewer_count'] >= min_viewer:
+                                if len(channel_name_set) < max_channel:
+                                    channel_name_set.add(channel_name)
+                                    channels.append(channel)
+                                else:
+                                    return channels
+                    # fail
+                    else:
+                        self.logger.error(res.status_code)
+        except ConnectionError as e:
+            self.logger.error(str(e))
         return channels
 
     def get_channels(self, min_viewer=MIN_VIEWER, max_channel=MAX_CHANNEL):
-        channels = self.get_channels_detail(min_viewer=min_viewer, max_channel=max_channel)
+        channels = self.get_channels_detail(
+            min_viewer=min_viewer, max_channel=max_channel)
         return [channel['user_login'] for channel in channels]
