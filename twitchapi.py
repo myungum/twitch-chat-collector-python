@@ -1,6 +1,8 @@
 import requests
 from datetime import datetime, timedelta
 import logging
+
+from urllib3.exceptions import NewConnectionError, MaxRetryError
 from loghandler import LogHandler
 
 MIN_VIEWER = 100
@@ -39,19 +41,20 @@ class TwitchAPI:
                 # success
                 if res.status_code == 200:
                     self.token = Token(res.json()['access_token'])
-                    print('new token is created :', self.token.value)
+                    self.logger.info('new token is created : {}'.format(self.token.value))
         return self.token.value
 
     def get_channels_detail(self, min_viewer=MIN_VIEWER, max_channel=MAX_CHANNEL):
-        headers = {
-            'Client-ID': self.client_id,
-            'Authorization': 'Bearer ' + self.get_token(),
-            'Accept': 'application/vnd.twitchtv.v5+json'
-        }
-
-        channel_name_set = set()
-        channels = []
         try:
+            headers = {
+                'Client-ID': self.client_id,
+                'Authorization': 'Bearer ' + self.get_token(),
+                'Accept': 'application/vnd.twitchtv.v5+json'
+            }
+
+            channel_name_set = set()
+            channels = []
+
             after = ''
             with requests.session() as s:
                 for _ in range(MAX_REQUEST):
@@ -72,7 +75,7 @@ class TwitchAPI:
                     # fail
                     else:
                         self.logger.error(res.status_code)
-        except ConnectionError as e:
+        except (MaxRetryError, NewConnectionError, ConnectionError) as e:
             self.logger.error(str(e))
         return channels
 
