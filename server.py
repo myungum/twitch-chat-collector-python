@@ -22,11 +22,8 @@ class Server:
         self.db = DB(conn_info)
         self.workers = []
         self.max_channel = max_channel
-        # logger
         self.logger = logging.getLogger('root')
-        self.logger.setLevel(logging.DEBUG)
-        self.logHandler = LogHandler(logging.DEBUG, conn_info)
-        self.logger.addHandler(self.logHandler)
+        
 
     def contains(self, channel):
         for worker in self.workers:

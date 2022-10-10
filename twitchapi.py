@@ -25,12 +25,7 @@ class TwitchAPI:
         self.client_id = conn_info['client_id']
         self.client_secret = conn_info['client_secret']
         self.token: Token = None
-
-       # logger
         self.logger = logging.getLogger('root')
-        self.logger.setLevel(logging.DEBUG)
-        self.logHandler = LogHandler(logging.DEBUG, conn_info)
-        self.logger.addHandler(self.logHandler)
 
     def get_token(self):
         # if token is unavailable, then make token

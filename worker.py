@@ -23,39 +23,38 @@ class Worker:
         print('worker', worker_no.value, 'started')
         clients = []
         sel = selectors.DefaultSelector()
-         # logger
         logger = logging.getLogger('root')
-        logger.setLevel(logging.DEBUG)
-        logHandler = LogHandler(logging.DEBUG, conn_info)
-        logger.addHandler(logHandler)
+        
+        try:
+            while True:
+                clients_remove = []
+                for client in clients:
+                    if client.stopped:
+                        clients_remove.append(client)
 
-        while True:
-            clients_remove = []
-            for client in clients:
-                if client.stopped:
-                    clients_remove.append(client)
+                for client in clients_remove:
+                    logger.debug('worker {} -= {}'.format(worker_no.value, client.channel))
+                    sel.unregister(client.sck)
+                    clients.remove(client)
+                    del channels[client.channel]
 
-            for client in clients_remove:
-                logger.debug('worker {} -= {}'.format(worker_no.value, client.channel))
-                sel.unregister(client.sck)
-                clients.remove(client)
-                del channels[client.channel]
-
-            while not queue_add.empty():
-                channel = queue_add.get()
-                if channel not in channels:
-                    logger.debug('worker {} -= {}'.format(worker_no.value, channel))
-                    client = Client(channel, conn_info, queue_chat)
-                    sel.register(client.sck, selectors.EVENT_READ,
-                                 client.receive)
-                    client.connect()
-                    clients.append(client)
-                    channels[channel] = 0
-            # get read events
-            events = sel.select(timeout=1)
-            for key, mask in events:
-                receive = key.data  # callback function
-                receive()
+                while not queue_add.empty():
+                    channel = queue_add.get()
+                    if channel not in channels:
+                        logger.debug('worker {} += {}'.format(worker_no.value, channel))
+                        client = Client(channel, conn_info, queue_chat)
+                        sel.register(client.sck, selectors.EVENT_READ,
+                                    client.receive)
+                        client.connect()
+                        clients.append(client)
+                        channels[channel] = 0
+                # get read events
+                events = sel.select(timeout=1)
+                for key, mask in events:
+                    receive = key.data  # callback function
+                    receive()
+        except KeyboardInterrupt:
+            pass
 
     def add(self, channel):
         self.queue_add.put(channel)
