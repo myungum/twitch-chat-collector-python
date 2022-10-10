@@ -4,34 +4,39 @@ from threading import Thread
 from multiprocessing import Queue
 import time
 
+PUSH_PERIOD = 1
+
 
 class DB:
-    def __init__(self, conn_info: dict) -> None:
+    def __init__(self, conn_info: dict, period: int = PUSH_PERIOD) -> None:
+        self.period = period
         self.queue_chat = Queue()
-        self.thread = Thread(
-            target=self.__push, args=(conn_info, 'chat', self.queue_chat, 1))
-        self.thread.daemon = True
-        self.thread.start()
 
-    def __push(self, conn_info: dict, collection_name: str, queue_chat: Queue, period: int):
         db_host = conn_info['db_host']
         db_port = conn_info['db_port']
         db_name = conn_info['db_name']
+        self.client = MongoClient(host=db_host, port=db_port)
+        self.collection = self.client[db_name]['chat']
 
-        client = MongoClient(host=db_host, port=db_port)
-        collection = client[db_name][collection_name]
+        self.thread = Thread(target=self.__push)
+        self.thread.daemon = True
+        self.thread.start()
 
-        while True:
-            start_time = datetime.now()
+    def __push(self):
+        try:
+            while True:
+                start_time = datetime.now()
 
-            if not queue_chat.empty():
-                docs = []
-                while not queue_chat.empty():
-                    doc = queue_chat.get()
-                    docs.append(doc)
-                print('{} | '.format(len(docs)), end='', flush=True)
-                collection.insert_many(docs)
+                if not self.queue_chat.empty():
+                    docs = []
+                    while not self.queue_chat.empty():
+                        doc = self.queue_chat.get()
+                        docs.append(doc)
+                    print('{} | '.format(len(docs)), end='', flush=True)
+                    self.collection.insert_many(docs)
 
-            elapsed_time = datetime.now() - start_time
-            if period > elapsed_time.seconds:
-                time.sleep(period - elapsed_time.seconds)
+                elapsed_time = datetime.now() - start_time
+                if self.period > elapsed_time.seconds:
+                    time.sleep(self.period - elapsed_time.seconds)
+        except KeyboardInterrupt:
+            return
