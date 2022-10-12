@@ -3,6 +3,7 @@ from datetime import datetime
 from threading import Thread
 from multiprocessing import Queue
 import time
+import logging
 
 PUSH_PERIOD = 1
 
@@ -17,6 +18,7 @@ class DB:
         db_name = conn_info['db_name']
         self.client = MongoClient(host=db_host, port=db_port)
         self.collection = self.client[db_name]['chat']
+        self.logger = logging.getLogger('root')
 
         self.thread = Thread(target=self.__push)
         self.thread.daemon = True
@@ -40,3 +42,6 @@ class DB:
                     time.sleep(self.period - elapsed_time.seconds)
         except KeyboardInterrupt:
             return
+        except Exception as e:
+            self.logger.error(str(e))
+            raise e
