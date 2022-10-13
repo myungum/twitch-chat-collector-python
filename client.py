@@ -3,10 +3,11 @@ from datetime import datetime
 from multiprocessing import Queue
 import traceback
 import logging
+from loghandler import LogHandler
 
 
 class Client:
-    def __init__(self, channel: str, conn_info: dict, queue_chat: Queue) -> None:
+    def __init__(self, channel: str, conn_info: dict) -> None:
         super().__init__()
         self.channel = channel
         self.host = conn_info['chat_host']
@@ -15,7 +16,6 @@ class Client:
         self.user_name = conn_info['chat_user_name']
         self.logger = logging.getLogger('root')
         self.sck = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.queue_chat = queue_chat
         self.stopped = False
         self.buffer = bytearray()
 
@@ -62,12 +62,7 @@ class Client:
                         message[4:]).encode('utf-8'))
 
                 # push to db
-                chat = {
-                    'channel': self.channel,
-                    'message': message,
-                    'datetime': datetime.now()
-                }
-                self.queue_chat.put(chat)
+                self.logger.log(LogHandler.CHAT_LOG_LEVEL_NO, message)
         except ConnectionError as e:
             self.logger.info('({}) {}'.format(self.channel, str(e)))
             self.stopped = True

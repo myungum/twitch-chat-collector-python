@@ -6,21 +6,19 @@ from loghandler import LogHandler
 
 
 class Worker:
-    def __init__(self, worker_no: int, conn_info: dict, queue_chat: Queue) -> None:
-        self.worker_no = Manager().Value('i', worker_no)
+    def __init__(self, worker_no: int, conn_info: dict) -> None:
+        self.name = 'worker {}'.format(worker_no)
         self.conn_info = conn_info
         self.queue_add = Queue()
-        self.queue_chat = queue_chat
         self.channels = Manager().dict()
 
     def start(self):
-        self.process = Process(target=self.run, args=(
-            self.worker_no, self.conn_info, self.channels, self.queue_add, self.queue_chat))
+        self.process = Process(target=self.run, args=(self.name, self.conn_info, self.channels, self.queue_add))
         self.process.daemon = True
         self.process.start()
 
-    def run(self, worker_no: Value, conn_info: dict, channels: dict, queue_add: Queue, queue_chat: Queue):
-        print('worker', worker_no.value, 'started')
+    def run(self, name: str, conn_info: dict, channels: dict, queue_add: Queue):
+        print('{} started'.format(name))
         clients = []
         sel = selectors.DefaultSelector()
         logger = logging.getLogger('root')
@@ -33,7 +31,7 @@ class Worker:
                         clients_remove.append(client)
 
                 for client in clients_remove:
-                    logger.debug('worker {} -= {}'.format(worker_no.value, client.channel))
+                    logger.debug('{} -= {}'.format(name, client.channel))
                     sel.unregister(client.sck)
                     clients.remove(client)
                     del channels[client.channel]
@@ -41,8 +39,8 @@ class Worker:
                 while not queue_add.empty():
                     channel = queue_add.get()
                     if channel not in channels:
-                        logger.debug('worker {} += {}'.format(worker_no.value, channel))
-                        client = Client(channel, conn_info, queue_chat)
+                        logger.debug('{} += {}'.format(name, channel))
+                        client = Client(channel, conn_info)
                         sel.register(client.sck, selectors.EVENT_READ,
                                     client.receive)
                         client.connect()

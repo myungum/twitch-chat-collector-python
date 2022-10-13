@@ -1,11 +1,9 @@
 from twitchapi import TwitchAPI
-from db import DB
 import time
-from multiprocessing import Manager
+from multiprocessing import Manager, Queue
 from worker import Worker
 import multiprocessing
 import logging
-from loghandler import LogHandler
 
 UPDATE_PERIOD = 60  # 1 minutes
 MAX_CHANNEL = 300
@@ -14,16 +12,12 @@ MAX_CHANNEL = 300
 class Server:
     def __init__(self, conn_info: dict,
                  max_channel=MAX_CHANNEL) -> None:
-        self.manager = Manager()
-        self.conn_info = self.manager.dict(conn_info)
-        self.clients = self.manager.dict()
-
+        self.conn_info = Manager().dict(conn_info)
         self.api = TwitchAPI(self.conn_info)
-        self.db = DB(conn_info)
+
         self.workers = []
         self.max_channel = max_channel
         self.logger = logging.getLogger('root')
-        
 
     def contains(self, channel):
         for worker in self.workers:
@@ -39,12 +33,13 @@ class Server:
 
     def start(self):
         self.logger.info('server start')
+        
         for i in range(multiprocessing.cpu_count()):
-            worker = Worker(i, self.conn_info, self.db.queue_chat)
+            worker = Worker(i, self.conn_info)
             worker.start()
             self.workers.append(worker)
 
-        self.logger.info('{} workers ready'.format(len(self.workers)))
+        self.logger.info('{} workers are created'.format(len(self.workers)))
 
         while True:
             # add
@@ -54,7 +49,3 @@ class Server:
                     self.add(channel)
                 time.sleep(0.1)
             time.sleep(UPDATE_PERIOD)
-
-    def stop(self):
-        for channel, client in self.clients.items():
-            client.stop()
