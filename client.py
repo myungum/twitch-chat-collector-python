@@ -1,9 +1,5 @@
 import socket
-from datetime import datetime
-from multiprocessing import Queue
-import traceback
 import logging
-from loghandler import LogHandler
 
 
 class Client:
@@ -62,7 +58,7 @@ class Client:
                         message[4:]).encode('utf-8'))
 
                 # push to db
-                self.logger.log(LogHandler.CHAT_LOG_LEVEL_NO, message)
+                self.logger.chat(self.channel, message)
         except ConnectionError as e:
             self.logger.info('({}) {}'.format(self.channel, str(e)))
             self.stopped = True

@@ -2,9 +2,6 @@ import requests
 from datetime import datetime, timedelta
 import logging
 
-from urllib3.exceptions import NewConnectionError, MaxRetryError
-from loghandler import LogHandler
-
 MIN_VIEWER = 100
 MAX_CHANNEL = 200
 MAX_REQUEST = 5
@@ -70,7 +67,7 @@ class TwitchAPI:
                     # fail
                     else:
                         self.logger.error(res.status_code)
-        except (MaxRetryError, NewConnectionError, ConnectionError) as e:
+        except Exception as e:
             self.logger.error(str(e))
         return channels
 

@@ -13,9 +13,7 @@ import time
 import sys
 
 
-class LogHandler(logging.Handler):
-    CHAT_LOG_LEVEL_NAME = 'CHAT'
-    CHAT_LOG_LEVEL_NO = 60
+class ChatLogHandler(logging.Handler):
     PUSH_PERIOD = 1
 
     def __init__(self, level=logging.DEBUG, conn_info: dict = None, period=PUSH_PERIOD) -> None:
@@ -62,29 +60,28 @@ class LogHandler(logging.Handler):
             except:
                 traceback.print_exc(file=sys.stderr)
 
-    def emit(self, record):
+    def chat(self, channel, msg):
         now = datetime.now()
-
-        # chat log
-        if record.levelno == LogHandler.CHAT_LOG_LEVEL_NO:
-            doc = {
-                'message': record.msg,
+        doc = {
+                'channel': channel,
+                'message': msg,
                 'datetime': now
             }
-            self.queue_chat.put_nowait(doc)
-        # normal log
-        else:
-            print('[{}] {} {} > {} : {}'.format(now, record.levelname,
-                  record.filename, record.funcName, record.msg))
+        self.queue_chat.put_nowait(doc)
 
-            doc = {
-                'file': record.filename,  # // 파일명
-                'process': record.processName,  # // 프로세스명
-                'thread': record.threadName,  # // 쓰레드명
-                'function': record.funcName,  # // 함수명
-                'level': record.levelno,  # // 로그레벨(ex. 10)
-                'levelName': record.levelname,  # // 로그레벨명(ex. DEBUG)
-                'message': record.msg,  # // 오류 메시지
-                'datetime': now,  # // 현재일시
-            }
-            self.queue_log.put_nowait(doc)
+    def emit(self, record):
+        now = datetime.now()
+        print('[{}] {} {} > {} : {}'.format(now, record.levelname,
+                record.filename, record.funcName, record.msg))
+
+        doc = {
+            'file': record.filename,  # // 파일명
+            'process': record.processName,  # // 프로세스명
+            'thread': record.threadName,  # // 쓰레드명
+            'function': record.funcName,  # // 함수명
+            'level': record.levelno,  # // 로그레벨(ex. 10)
+            'levelName': record.levelname,  # // 로그레벨명(ex. DEBUG)
+            'message': record.msg,  # // 오류 메시지
+            'datetime': now,  # // 현재일시
+        }
+        self.queue_log.put_nowait(doc)

@@ -1,9 +1,10 @@
 from twitchapi import TwitchAPI
 import time
-from multiprocessing import Manager, Queue
+from multiprocessing import Manager
 from worker import Worker
 import multiprocessing
 import logging
+
 
 UPDATE_PERIOD = 60  # 1 minutes
 MAX_CHANNEL = 300

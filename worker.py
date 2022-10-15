@@ -1,8 +1,7 @@
-from multiprocessing import Process, Queue, Manager, Value
+from multiprocessing import Process, Queue, Manager
 from client import Client
 import selectors
 import logging
-from loghandler import LogHandler
 
 
 class Worker:
