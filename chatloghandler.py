@@ -19,27 +19,32 @@ class ChatLogHandler(logging.Handler):
     def __init__(self, level=logging.DEBUG, conn_info: dict = None, period=PUSH_PERIOD) -> None:
         logging.Handler.__init__(self, level)
 
+        self.conn_info = conn_info
         self.queue_log = Queue()
         self.queue_chat = Queue()
         self.period: int = period
+        self.is_running = False
 
-        db_host = conn_info['db_host']
-        db_port = conn_info['db_port']
-        db_name = conn_info['db_name']
-        client = MongoClient(host=db_host, port=db_port)
+    def start_push(self):
+        if not self.is_running:
+            self.is_running = True
 
-        self.thread_log = Thread(target=self.__push, args=(
-            False, client[db_name]['log'], self.queue_log))
-        self.thread_log.daemon = True
-        self.thread_log.start()
+            db_host = self.conn_info['db_host']
+            db_port = self.conn_info['db_port']
+            db_name = self.conn_info['db_name']
+            client = MongoClient(host=db_host, port=db_port)
 
-        self.thread_chat = Thread(target=self.__push, args=(
-            True, client[db_name]['chat'], self.queue_chat))
-        self.thread_chat.daemon = True
-        self.thread_chat.start()
+            self.thread_log = Thread(target=self.__push, args=(
+                False, client[db_name]['log'], self.queue_log))
+            self.thread_log.daemon = True
+            self.thread_log.start()
+
+            self.thread_chat = Thread(target=self.__push, args=(
+                True, client[db_name]['chat'], self.queue_chat))
+            self.thread_chat.daemon = True
+            self.thread_chat.start()
 
     def __push(self, console: bool, collection: Collection, queue: Queue):
-        
         while True:
             try:
                 start_time = datetime.now()
@@ -63,16 +68,16 @@ class ChatLogHandler(logging.Handler):
     def chat(self, channel, msg):
         now = datetime.now()
         doc = {
-                'channel': channel,
-                'message': msg,
-                'datetime': now
-            }
+            'channel': channel,
+            'message': msg,
+            'datetime': now
+        }
         self.queue_chat.put_nowait(doc)
 
     def emit(self, record):
         now = datetime.now()
         print('[{}] {} {} > {} : {}'.format(now, record.levelname,
-                record.filename, record.funcName, record.msg))
+                                            record.filename, record.funcName, record.msg))
 
         doc = {
             'file': record.filename,  # // 파일명

@@ -41,6 +41,7 @@ class Server:
             self.workers.append(worker)
 
         self.logger.info('{} workers are created'.format(len(self.workers)))
+        self.logger.start_push()
 
         while True:
             # add

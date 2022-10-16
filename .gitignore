@@ -9,6 +9,9 @@ __pycache__/
 # C extensions
 *.so
 
+# auto-commit tool
+auto_commit.py
+
 #setting
 settings.json
 
