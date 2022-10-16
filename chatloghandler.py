@@ -24,25 +24,24 @@ class ChatLogHandler(logging.Handler):
         self.queue_chat = Queue()
         self.period: int = period
         self.is_running = False
+        self.threads = []
+
+    def start_push_thread(self, console: bool, collection: Collection, queue: Queue):
+        thread = Thread(target=self.__push, args=(console, collection, queue))
+        thread.daemon = True
+        thread.start()
+        self.threads.append(thread)
 
     def start_push(self):
         if not self.is_running:
             self.is_running = True
-
             db_host = self.conn_info['db_host']
             db_port = self.conn_info['db_port']
             db_name = self.conn_info['db_name']
             client = MongoClient(host=db_host, port=db_port)
 
-            self.thread_log = Thread(target=self.__push, args=(
-                False, client[db_name]['log'], self.queue_log))
-            self.thread_log.daemon = True
-            self.thread_log.start()
-
-            self.thread_chat = Thread(target=self.__push, args=(
-                True, client[db_name]['chat'], self.queue_chat))
-            self.thread_chat.daemon = True
-            self.thread_chat.start()
+            self.start_push_thread(False, client[db_name]['log'], self.queue_log)
+            self.start_push_thread(True, client[db_name]['chat'], self.queue_chat)
 
     def __push(self, console: bool, collection: Collection, queue: Queue):
         while True:
