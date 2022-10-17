@@ -15,12 +15,6 @@ class Client:
         self.stopped = False
         self.buffer = bytearray()
 
-    def split(self, data):
-        for i in range(len(data) - 1):
-            if data[i] == b'\r'[0] and data[i + 1] == b'\n'[0]:
-                return i
-        return -1
-
     def connect(self):
         try:
             self.sck.connect((self.host, self.port))
@@ -29,8 +23,18 @@ class Client:
             self.sck.send('NICK {}\r\n'.format(self.user_name).encode('utf-8'))
             self.sck.send('JOIN #{}\r\n'.format(self.channel).encode('utf-8'))
         except Exception as e:
-            self.logger.error('({}) {}'.format(self.channel, str(e)))
+            self.error(e)
+            self.stop()
+
+    def stop(self):
+        if not self.stopped:
             self.stopped = True
+            self.sck.close()
+            self.logger.info(
+                '({}) Connection has been closed'.format(self.channel))
+
+    def error(self, e: Exception):
+        self.logger.error('({}) {}'.format(self.channel, str(e)))
 
     def receive(self):
         try:
@@ -38,30 +42,25 @@ class Client:
             received = self.sck.recv(1024 * 8)
 
             # disconnected
-            if len(received) == 0:
-                self.logger.info('({}) Connection has been closed'.format(self.channel))
-                self.stopped = True
+            if len(received) == 0 or self.stopped:
+                self.stop()
                 return
 
             # add data to buffer
             self.buffer += received
-            while not self.stopped:
-                idx = self.split(self.buffer)
-                if idx == -1:
-                    return
-
-                message, self.buffer = self.buffer[:idx].decode(
-                    'utf-8'), self.buffer[idx+2:]
+            args = self.buffer.split(b'\r\n')
+            self.buffer = args[-1]
+            for arg in args[:-1]:
+                message = arg.decode('utf-8')
                 # ping/pong
                 if message[:4] == 'PING':
                     self.sck.send('PONG{}\r\n'.format(
                         message[4:]).encode('utf-8'))
-
                 # push to db
                 self.logger.chat(self.channel, message)
+
         except ConnectionError as e:
-            self.logger.info('({}) {}'.format(self.channel, str(e)))
-            self.stopped = True
+            self.stop()
         except Exception as e:
-            self.logger.error('({}) {}'.format(self.channel, str(e)))
-            self.stopped = True
+            self.error(e)
+            self.stop()
