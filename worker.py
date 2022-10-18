@@ -30,21 +30,20 @@ class Worker:
                         clients_remove.append(client)
 
                 for client in clients_remove:
-                    logger.debug('{} -= {}'.format(name, client.channel))
+                    logger.debug('{} -= {} → {} client(s)'.format(name, client.channel, len(clients) - 1))
                     sel.unregister(client.sck)
                     clients.remove(client)
                     del channels[client.channel]
 
                 while not queue_add.empty():
                     channel = queue_add.get()
-                    if channel not in channels:
-                        logger.debug('{} += {}'.format(name, channel))
-                        client = Client(channel, conn_info)
-                        sel.register(client.sck, selectors.EVENT_READ,
-                                    client.receive)
-                        client.connect()
-                        clients.append(client)
-                        channels[channel] = 0
+                    logger.debug('{} += {} → {} client(s)'.format(name, channel, len(clients) + 1))
+                    client = Client(channel, conn_info)
+                    sel.register(client.sck, selectors.EVENT_READ,
+                                client.receive)
+                    client.connect()
+                    clients.append(client)
+                    channels[channel] = 0
                 # get read events
                 events = sel.select(timeout=1)
                 for key, mask in events:
@@ -54,6 +53,7 @@ class Worker:
             pass
 
     def add(self, channel):
+        self.channels[channel] = 0
         self.queue_add.put(channel)
 
     def size(self):
