@@ -64,12 +64,11 @@ class ChatLogHandler(logging.Handler):
             except:
                 traceback.print_exc(file=sys.stderr)
 
-    def chat(self, channel, msg):
-        now = datetime.now()
+    def chat(self, channel: str, msg: str, datetime: datetime):
         doc = {
             'channel': channel,
             'message': msg,
-            'datetime': now
+            'datetime': datetime
         }
         self.queue_chat.put_nowait(doc)
 

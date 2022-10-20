@@ -1,5 +1,9 @@
 import socket
 import logging
+from collections import deque
+from datetime import datetime
+
+HISTORY_SIZE = 30
 
 
 class Client:
@@ -14,6 +18,7 @@ class Client:
         self.sck = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.stopped = False
         self.buffer = bytearray()
+        self.history = deque(maxlen=HISTORY_SIZE)
 
     def connect(self):
         try:
@@ -36,6 +41,12 @@ class Client:
     def error(self, e: Exception):
         self.logger.error('({}) {}'.format(self.channel, str(e)))
 
+    def chats_per_sec(self):
+        seconds = (self.history[-1] - self.history[0]).total_seconds()
+        if seconds == 0:
+            return 0
+        return len(self.history) / seconds
+
     def receive(self):
         try:
             # receive data
@@ -57,7 +68,10 @@ class Client:
                     self.sck.send('PONG{}\r\n'.format(
                         message[4:]).encode('utf-8'))
                 # push to db
-                self.logger.chat(self.channel, message)
+                now = datetime.now()
+                self.logger.chat(self.channel, message, now)
+                self.history.append(now)
+                self.logger.debug('({}) {} chats/s'.format(self.channel, self.chats_per_sec()))
 
         except ConnectionError as e:
             self.stop()
