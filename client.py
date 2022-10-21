@@ -42,9 +42,13 @@ class Client:
         self.logger.error('({}) {}'.format(self.channel, str(e)))
 
     def chats_per_sec(self):
+        if len(self.history) <= 1:
+            return 0
+
         seconds = (self.history[-1] - self.history[0]).total_seconds()
         if seconds == 0:
             return 0
+
         return len(self.history) / seconds
 
     def receive(self):
@@ -71,7 +75,6 @@ class Client:
                 now = datetime.now()
                 self.logger.chat(self.channel, message, now)
                 self.history.append(now)
-                self.logger.debug('({}) {} chats/s'.format(self.channel, self.chats_per_sec()))
 
         except ConnectionError as e:
             self.stop()

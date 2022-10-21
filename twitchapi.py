@@ -17,7 +17,6 @@ class Token:
 
 
 class TwitchAPI:
-
     def __init__(self, conn_info: dict):
         self.client_id = conn_info['client_id']
         self.client_secret = conn_info['client_secret']
@@ -33,7 +32,8 @@ class TwitchAPI:
                 # success
                 if res.status_code == 200:
                     self.token = Token(res.json()['access_token'])
-                    self.logger.info('new token is created : {}'.format(self.token.value))
+                    self.logger.info(
+                        'new token is created : {}'.format(self.token.value))
         return self.token.value
 
     def get_channels_detail(self, min_viewer=MIN_VIEWER, max_channel=MAX_CHANNEL):

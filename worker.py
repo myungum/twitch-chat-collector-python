@@ -21,9 +21,10 @@ class Worker:
         clients = []
         sel = selectors.DefaultSelector()
         logger = logging.getLogger('root')
-        
+
         try:
             while True:
+                # remove channel
                 clients_remove = []
                 for client in clients:
                     if client.stopped:
@@ -35,15 +36,16 @@ class Worker:
                     clients.remove(client)
                     del channels[client.channel]
 
+                # add channel
                 while not queue_add.empty():
                     channel = queue_add.get()
                     logger.debug('{} += {} → {} client(s)'.format(name, channel, len(clients) + 1))
                     client = Client(channel, conn_info)
                     sel.register(client.sck, selectors.EVENT_READ,
-                                client.receive)
+                                 client.receive)
                     client.connect()
                     clients.append(client)
-                    channels[channel] = 0
+
                 # get read events
                 events = sel.select(timeout=1)
                 for key, mask in events:
@@ -52,12 +54,12 @@ class Worker:
         except KeyboardInterrupt:
             pass
 
-    def add(self, channel):
+    def add(self, channel: str):
         self.channels[channel] = 0
         self.queue_add.put(channel)
 
     def size(self):
         return len(self.channels)
 
-    def contains(self, channel):
+    def contains(self, channel: str):
         return channel in self.channels
