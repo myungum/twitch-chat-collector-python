@@ -25,18 +25,18 @@ class Client:
             self.sck.send('NICK {}\r\n'.format(self.channel.user_name).encode('utf-8'))
             self.sck.send('JOIN #{}\r\n'.format(self.channel.name).encode('utf-8'))
         except Exception as e:
-            self.error(e)
+            self.logger.error('({}) {}'.format(self.channel.name, str(e)))
             self.stop()
 
     def stop(self):
         if not self.stopped:
             self.stopped = True
-            self.sck.close()
             self.logger.info(
                 '({}) Connection has been closed'.format(self.channel.name))
 
-    def error(self, e: Exception):
-        self.logger.error('({}) {}'.format(self.channel.name, str(e)))
+    def close(self):
+        self.stop()
+        self.sck.close()
 
     def chats_per_sec(self):
         if len(self.history) <= 1:
@@ -72,9 +72,8 @@ class Client:
                 now = datetime.now()
                 self.logger.chat(self.channel.name, message, now)
                 self.history.append(now)
-
         except ConnectionError as e:
             self.stop()
         except Exception as e:
-            self.error(e)
+            self.logger.error('({}) {}'.format(self.channel.name, str(e)))
             self.stop()
