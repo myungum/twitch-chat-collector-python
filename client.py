@@ -2,31 +2,28 @@ import socket
 import logging
 from collections import deque
 from datetime import datetime
+from twitchapi import Channel
 
 HISTORY_SIZE = 30
 
 
 class Client:
-    def __init__(self, channel: str, conn_info: dict) -> None:
-        super().__init__()
+    def __init__(self, channel: Channel):
         self.channel = channel
-        self.host = conn_info['chat_host']
-        self.port = conn_info['chat_port']
-        self.token = conn_info['chat_token']
-        self.user_name = conn_info['chat_user_name']
         self.logger = logging.getLogger('root')
         self.sck = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.stopped = False
         self.buffer = bytearray()
         self.history = deque(maxlen=HISTORY_SIZE)
+        self.worker = None
 
     def connect(self):
         try:
-            self.sck.connect((self.host, self.port))
+            self.sck.connect((self.channel.host, self.channel.port))
             self.sck.send('CAP REQ :twitch.tv/commands\r\n'.encode('utf-8'))
-            self.sck.send('PASS {}\r\n'.format(self.token).encode('utf-8'))
-            self.sck.send('NICK {}\r\n'.format(self.user_name).encode('utf-8'))
-            self.sck.send('JOIN #{}\r\n'.format(self.channel).encode('utf-8'))
+            self.sck.send('PASS {}\r\n'.format(self.channel.token).encode('utf-8'))
+            self.sck.send('NICK {}\r\n'.format(self.channel.user_name).encode('utf-8'))
+            self.sck.send('JOIN #{}\r\n'.format(self.channel.name).encode('utf-8'))
         except Exception as e:
             self.error(e)
             self.stop()
@@ -36,10 +33,10 @@ class Client:
             self.stopped = True
             self.sck.close()
             self.logger.info(
-                '({}) Connection has been closed'.format(self.channel))
+                '({}) Connection has been closed'.format(self.channel.name))
 
     def error(self, e: Exception):
-        self.logger.error('({}) {}'.format(self.channel, str(e)))
+        self.logger.error('({}) {}'.format(self.channel.name, str(e)))
 
     def chats_per_sec(self):
         if len(self.history) <= 1:
@@ -73,7 +70,7 @@ class Client:
                         message[4:]).encode('utf-8'))
                 # push to db
                 now = datetime.now()
-                self.logger.chat(self.channel, message, now)
+                self.logger.chat(self.channel.name, message, now)
                 self.history.append(now)
 
         except ConnectionError as e:

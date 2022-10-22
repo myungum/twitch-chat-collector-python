@@ -1,9 +1,10 @@
-from twitchapi import TwitchAPI
+from twitchapi import TwitchAPI, Channel
 import time
 from multiprocessing import Manager
 from worker import Worker
 import multiprocessing
 import logging
+import copy
 
 
 UPDATE_PERIOD = 60  # 1 minutes
@@ -14,29 +15,39 @@ class Server:
     def __init__(self, conn_info: dict,
                  max_channel=MAX_CHANNEL) -> None:
         self.conn_info = Manager().dict(conn_info)
+        self.channels = Manager().dict()
         self.api = TwitchAPI(self.conn_info)
 
         self.workers = []
         self.max_channel = max_channel
         self.logger = logging.getLogger('root')
 
-    def contains(self, channel):
-        for worker in self.workers:
-            if worker.contains(channel):
-                return True
-        return False
+    def get_lazy_worker(self):
+        return min(self.workers, key=lambda worker: worker.viewer_count.value)
+    
+    def update_channel(self, channel: Channel):
+        if channel.name in self.channels:
+            viewer_count, worker_no, stopped = self.channels[channel.name]
+            worker: Worker = self.workers[worker_no]
+            worker.update_viewer_count(channel)
 
-    def add(self, channel):
-        sorted_workers = [(worker.size(), worker) for worker in self.workers]
-        sorted_workers.sort(key=lambda w: w[0])
-        lazy_worker = sorted_workers[0][1]
-        lazy_worker.add(channel)
+    def try_add(self, channel: Channel):
+        if not channel.name in self.channels:
+            worker: Worker = self.get_lazy_worker()
+            worker.add(channel)
+
+    def try_remove(self, channel_name: str):
+        if channel_name in self.channels:
+            viewer_count, worker_no, stopped = self.channels[channel_name]
+            if stopped:
+                worker: Worker = self.workers[worker_no]
+                worker.remove(channel_name)
 
     def start(self):
         self.logger.info('server start')
         
         for i in range(multiprocessing.cpu_count()):
-            worker = Worker(i, self.conn_info)
+            worker = Worker(i, self.conn_info, self.channels)
             worker.start()
             self.workers.append(worker)
 
@@ -45,9 +56,13 @@ class Server:
 
         while True:
             # add
-            channels = self.api.get_channels(max_channel=self.max_channel)
-            for channel in channels:
-                if not self.contains(channel):
-                    self.add(channel)
+            live_channels = self.api.get_channels(max_channel=self.max_channel)
+            for channel in live_channels:
+                self.update_channel(channel)
+            for channel in live_channels:
+                self.try_add(channel)
                 time.sleep(0.1)
-            time.sleep(UPDATE_PERIOD)
+            # remove
+            remove_channels = copy.deepcopy(self.channels)
+            for channel_name in remove_channels.keys():
+                self.try_remove(channel_name)
