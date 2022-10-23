@@ -1,10 +1,9 @@
 import socket
 import logging
-from collections import deque
 from datetime import datetime
 from twitchapi import Channel
 
-HISTORY_SIZE = 30
+TIMEOUT = 600  # 10 minutes
 
 
 class Client:
@@ -14,8 +13,8 @@ class Client:
         self.sck = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.stopped = False
         self.buffer = bytearray()
-        self.history = deque(maxlen=HISTORY_SIZE)
         self.worker = None
+        self.received_time = datetime.now()
 
     def connect(self):
         try:
@@ -28,34 +27,33 @@ class Client:
             self.logger.error('({}) {}'.format(self.channel.name, str(e)))
             self.stop()
 
-    def stop(self):
+    def stop(self, reason=None):
         if not self.stopped:
             self.stopped = True
-            self.logger.info(
-                '({}) Connection has been closed'.format(self.channel.name))
+            reason = '' if reason is None else '({})'.format(reason)
+            log_msg = 'Connection with {} has been closed{}'.format(self.channel.name, reason)
+            self.logger.info(log_msg)
 
     def close(self):
         self.stop()
         self.sck.close()
 
-    def chats_per_sec(self):
-        if len(self.history) <= 1:
-            return 0
-
-        seconds = (self.history[-1] - self.history[0]).total_seconds()
-        if seconds == 0:
-            return 0
-
-        return len(self.history) / seconds
+    def check_timeout(self):
+        if self.stopped:
+            return
+        if (datetime.now() - self.received_time).total_seconds() < TIMEOUT:
+            return
+        self.stop('timeout')
 
     def receive(self):
         try:
             # receive data
             received = self.sck.recv(1024 * 8)
 
-            # disconnected
-            if len(received) == 0 or self.stopped:
-                self.stop()
+            # disconnect
+            if len(received) == 0:
+                self.stop('by remote')
+            if self.stopped:
                 return
 
             # add data to buffer
@@ -71,7 +69,7 @@ class Client:
                 # push to db
                 now = datetime.now()
                 self.logger.chat(self.channel.name, message, now)
-                self.history.append(now)
+                self.received_time = now
         except ConnectionError as e:
             self.stop()
         except Exception as e:

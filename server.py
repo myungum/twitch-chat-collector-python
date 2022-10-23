@@ -4,9 +4,9 @@ from multiprocessing import Manager, Queue
 from worker import Worker
 import multiprocessing
 import logging
+from datetime import datetime
 
-
-UPDATE_PERIOD = 60  # 1 minutes
+UPDATE_PERIOD = 60  # 1 minute
 MAX_CHANNEL = 300
 
 
@@ -54,6 +54,7 @@ class Server:
         self.logger.start_push()
 
         while True:
+            start_time = datetime.now()
             # add
             live_channels = self.api.get_channels(max_channel=self.max_channel)
             for channel in live_channels:
@@ -65,3 +66,7 @@ class Server:
             while not self.queue_remove.empty():
                 channel_name = self.queue_remove.get()
                 self.remove(channel_name)
+            # wait
+            elapsed_time = (datetime.now() - start_time).total_seconds()
+            time.sleep(max(UPDATE_PERIOD - elapsed_time, 0))
+

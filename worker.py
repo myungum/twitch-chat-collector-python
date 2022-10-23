@@ -4,7 +4,6 @@ from selectors import DefaultSelector, EVENT_READ
 import logging
 from logging import Logger
 from twitchapi import Channel
-import copy
 
 
 class Worker:
@@ -19,11 +18,11 @@ class Worker:
         self.viewer_count = Value('i', 0)
 
     def start(self):
-        self.process = Process(target=self.run, args=(self.worker_no, self.queue_add, self.queue_remove))
+        self.process = Process(target=self.run)
         self.process.daemon = True
         self.process.start()
 
-    def run(self, worker_no: int, queue_add: Queue, queue_remove: Queue):
+    def run(self):
         print('{} started'.format(self.name))
         logger = logging.getLogger('root')
         selector = DefaultSelector()
@@ -32,22 +31,22 @@ class Worker:
         try:
             while True:
                 # register
-                while not queue_add.empty():
-                    client: Client = queue_add.get()
+                while not self.queue_add.empty():
+                    client: Client = self.queue_add.get()
                     client.worker = self
                     clients[client.channel.name] = client
                     selector.register(client.sck, EVENT_READ, client.receive)
                     client.connect()
-                    logger.debug('{} += {} → {} viewers'.format(self.name, client.channel.name, self.viewer_count.value))
                 # unregister
                 for channel_name in list(clients.keys()):
                     client: Client = clients[channel_name]
+                    client.check_timeout()
                     if client.stopped:
+                        client.stop()
                         del clients[client.channel.name]
                         selector.unregister(client.sck)
                         client.close()    
-                        queue_remove.put(client.channel.name)          
-                        logger.debug('{} -= {} → {} viewers'.format(self.name, client.channel.name, self.viewer_count.value))
+                        self.queue_remove.put(client.channel.name)          
                 # get read events
                 events = selector.select(timeout=1)
                 for key, mask in events:
@@ -62,6 +61,7 @@ class Worker:
             old_viewer_count = self.channels[channel.name][0]
             self.viewer_count.value += (new_viewer_count - old_viewer_count)
             self.channels[channel.name][0] = new_viewer_count
+            self.logger.debug('{} {}({}→{}) → {} viewers'.format(self.name, channel.name, old_viewer_count, new_viewer_count, self.viewer_count.value))
         except Exception as e:
             self.logger.error(str(e))
     
@@ -70,6 +70,7 @@ class Worker:
         try:
             self.channels[channel.name] = [channel.viewer_count, self.worker_no]
             self.viewer_count.value += channel.viewer_count
+            self.logger.debug('{} += {}({}) → {} viewers'.format(self.name, channel.name, channel.viewer_count, self.viewer_count.value))
             self.queue_add.put(Client(channel))
         except Exception as e:
             self.logger.error(str(e))
@@ -78,6 +79,7 @@ class Worker:
         try:
             viewer_count = self.channels[channel_name][0]
             del self.channels[channel_name]
-            self.viewer_count.value += viewer_count
+            self.viewer_count.value -= viewer_count
+            self.logger.debug('{} -= {}({}) → {} viewers'.format(self.name, channel_name, viewer_count, self.viewer_count.value))
         except Exception as e:
             self.logger.error(str(e))

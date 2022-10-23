@@ -56,9 +56,8 @@ class ChatLogHandler(logging.Handler):
                 if len(docs) > 0:
                     collection.insert_many(docs)
 
-                elapsed_time = datetime.now() - start_time
-                if self.period > elapsed_time.seconds:
-                    time.sleep(self.period - elapsed_time.seconds)
+                elapsed_time = (datetime.now() - start_time).total_seconds()
+                time.sleep(max(self.period - elapsed_time, 0))
             except (KeyboardInterrupt, SystemExit, EOFError):
                 return
             except:
