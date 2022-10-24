@@ -23,7 +23,7 @@ class Server:
         self.logger = logging.getLogger('root')
 
     def get_lazy_worker(self):
-        return min(self.workers, key=lambda worker: worker.viewer_count.value)
+        return min(self.workers, key=lambda worker: worker.viewer_count)
 
     def update_channel(self, channel: Channel):
         if channel.name in self.channels:

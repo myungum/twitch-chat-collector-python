@@ -1,4 +1,4 @@
-from multiprocessing import Process, Queue, Manager, Value
+from multiprocessing import Process, Queue, Manager
 from client import Client
 from selectors import DefaultSelector, EVENT_READ
 import logging
@@ -15,7 +15,7 @@ class Worker:
         self.logger: Logger = logging.getLogger('root')
         self.queue_add = Manager().Queue()
         self.queue_remove = queue_remove
-        self.viewer_count = Value('i', 0)
+        self.viewer_count = 0
 
     def start(self):
         self.process = Process(target=self.run)
@@ -59,9 +59,10 @@ class Worker:
         try:
             new_viewer_count = channel.viewer_count
             old_viewer_count = self.channels[channel.name][0]
-            self.viewer_count.value += (new_viewer_count - old_viewer_count)
-            self.channels[channel.name][0] = new_viewer_count
-            self.logger.debug('{} {}({}→{}) → {} viewers'.format(self.name, channel.name, old_viewer_count, new_viewer_count, self.viewer_count.value))
+            if new_viewer_count != old_viewer_count:
+                self.viewer_count += (new_viewer_count - old_viewer_count)
+                self.channels[channel.name] = [new_viewer_count, self.worker_no]
+                self.logger.debug('{} {}({}→{}) → {} viewers'.format(self.name, channel.name, old_viewer_count, new_viewer_count, self.viewer_count))
         except Exception as e:
             self.logger.error(str(e))
     
@@ -69,8 +70,8 @@ class Worker:
     def add(self, channel: Channel):
         try:
             self.channels[channel.name] = [channel.viewer_count, self.worker_no]
-            self.viewer_count.value += channel.viewer_count
-            self.logger.debug('{} += {}({}) → {} viewers'.format(self.name, channel.name, channel.viewer_count, self.viewer_count.value))
+            self.viewer_count += channel.viewer_count
+            self.logger.debug('{} += {}({}) → {} viewers'.format(self.name, channel.name, channel.viewer_count, self.viewer_count))
             self.queue_add.put(Client(channel))
         except Exception as e:
             self.logger.error(str(e))
@@ -79,7 +80,7 @@ class Worker:
         try:
             viewer_count = self.channels[channel_name][0]
             del self.channels[channel_name]
-            self.viewer_count.value -= viewer_count
-            self.logger.debug('{} -= {}({}) → {} viewers'.format(self.name, channel_name, viewer_count, self.viewer_count.value))
+            self.viewer_count -= viewer_count
+            self.logger.debug('{} -= {}({}) → {} viewers'.format(self.name, channel_name, viewer_count, self.viewer_count))
         except Exception as e:
             self.logger.error(str(e))
