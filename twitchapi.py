@@ -2,8 +2,7 @@ import requests
 from datetime import datetime, timedelta
 import logging
 
-MIN_VIEWER = 100
-MAX_CHANNEL = 200
+MIN_VIEWER = 50
 MAX_REQUEST = 5
 TOKEN_LIFE_TIME = 60 * 60  # 1 hour
 URL_GET_TOKEN = 'https://id.twitch.tv/oauth2/token?client_id={}&client_secret={}&grant_type=client_credentials'
@@ -47,7 +46,7 @@ class TwitchAPI:
                         'new token is created : {}'.format(self.token.value))
         return self.token.value
 
-    def get_channels(self, min_viewer=MIN_VIEWER, max_channel=MAX_CHANNEL):
+    def get_channels(self, channel_count, min_viewer_count=MIN_VIEWER):
         try:
             headers = {
                 'Client-ID': self.client_id,
@@ -69,8 +68,8 @@ class TwitchAPI:
                         for channel_data in res.json()['data']:
                             channel_name = channel_data['user_login']
                             # if channel is unique, then append to list
-                            if channel_name not in channel_name_set and channel_data['viewer_count'] >= min_viewer:
-                                if len(channel_name_set) < max_channel:
+                            if channel_name not in channel_name_set and channel_data['viewer_count'] >= min_viewer_count:
+                                if len(channel_name_set) < channel_count:
                                     channel_name_set.add(channel_name)
                                     channels.append(Channel(channel_data, self.conn_info))
                                 else:

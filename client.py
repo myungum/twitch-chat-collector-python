@@ -3,7 +3,7 @@ import logging
 from datetime import datetime
 from twitchapi import Channel
 
-TIMEOUT = 600  # 10 minutes
+TIMEOUT = 300  # 5 minutes
 
 
 class Client:
@@ -60,16 +60,17 @@ class Client:
             self.buffer += received
             args = self.buffer.split(b'\r\n')
             self.buffer = args[-1]
+            now = datetime.now()
             for arg in args[:-1]:
                 message = arg.decode('utf-8')
                 # ping/pong
                 if message[:4] == 'PING':
                     self.sck.send('PONG{}\r\n'.format(
                         message[4:]).encode('utf-8'))
+                else:
+                    self.received_time = now
                 # push to db
-                now = datetime.now()
                 self.logger.chat(self.channel.name, message, now)
-                self.received_time = now
         except ConnectionError as e:
             self.stop()
         except Exception as e:

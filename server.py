@@ -7,19 +7,19 @@ import logging
 from datetime import datetime
 
 UPDATE_PERIOD = 60  # 1 minute
-MAX_CHANNEL = 300
+REQ_CHANNEL_COUNT = 300
 
 
 class Server:
     def __init__(self, conn_info: dict,
-                 max_channel=MAX_CHANNEL) -> None:
+                 req_channel_count=REQ_CHANNEL_COUNT) -> None:
         self.conn_info = Manager().dict(conn_info)
         self.channels = Manager().dict()
         self.queue_remove = Queue()
         self.api = TwitchAPI(self.conn_info)
 
         self.workers = []
-        self.max_channel = max_channel
+        self.req_channel_count = req_channel_count
         self.logger = logging.getLogger('root')
 
     def get_lazy_worker(self):
@@ -56,7 +56,7 @@ class Server:
         while True:
             start_time = datetime.now()
             # add
-            live_channels = self.api.get_channels(max_channel=self.max_channel)
+            live_channels = self.api.get_channels(channel_count=self.req_channel_count)
             for channel in live_channels:
                 self.update_channel(channel)
             for channel in live_channels:
