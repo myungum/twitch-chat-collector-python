@@ -23,6 +23,15 @@ class Channel:
         self.port = conn_info['chat_port']
         self.token = conn_info['chat_token']
         self.user_name = conn_info['chat_user_name']
+    
+    def __str__(self) -> str:
+        return self.name
+
+    def __eq__(self, __o: object) -> bool:
+        return self.name == __o.name
+
+    def __hash__(self) -> int:
+        return hash(self.name)
 
 
 class TwitchAPI:
@@ -47,15 +56,13 @@ class TwitchAPI:
         return self.token.value
 
     def get_channels(self, channel_count, min_viewer_count=MIN_VIEWER):
+        channels = set()
         try:
             headers = {
                 'Client-ID': self.client_id,
                 'Authorization': 'Bearer ' + self.get_token(),
                 'Accept': 'application/vnd.twitchtv.v5+json'
             }
-
-            channel_name_set = set()
-            channels = []
 
             after = ''
             with requests.session() as s:
@@ -66,17 +73,15 @@ class TwitchAPI:
                     if res.status_code == 200:
                         after = res.json()['pagination']['cursor']
                         for channel_data in res.json()['data']:
-                            channel_name = channel_data['user_login']
+                            channel = Channel(channel_data, self.conn_info)
                             # if channel is unique, then append to list
-                            if channel_name not in channel_name_set and channel_data['viewer_count'] >= min_viewer_count:
-                                if len(channel_name_set) < channel_count:
-                                    channel_name_set.add(channel_name)
-                                    channels.append(Channel(channel_data, self.conn_info))
-                                else:
-                                    return channels
+                            if channel.viewer_count >= min_viewer_count:
+                                channels.add(channel)
+                                if len(channels) >= channel_count:
+                                    return sorted(channels, key=lambda c: -c.viewer_count)
                     # fail
                     else:
                         self.logger.error(res.status_code)
         except Exception as e:
             self.logger.error(str(e))
-        return channels
+        return sorted(channels, key=lambda c: -c.viewer_count)
