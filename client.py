@@ -70,7 +70,7 @@ class Client:
                 else:
                     self.received_time = now
                 # push to db
-                self.logger.chat(self.channel.name, message, now)
+                self.logger.chat(self.channel.name, self.channel.game, message, now)
         except ConnectionError as e:
             self.stop()
         except Exception as e:

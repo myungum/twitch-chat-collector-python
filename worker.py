@@ -15,6 +15,7 @@ class Worker:
         self.logger: Logger = logging.getLogger('root')
         self.queue_add = Manager().Queue()
         self.queue_remove = queue_remove
+        self.queue_update = Manager().Queue()
         self.viewer_count = 0
 
     def start(self):
@@ -46,7 +47,14 @@ class Worker:
                         del clients[client.channel.name]
                         selector.unregister(client.sck)
                         client.close()    
-                        self.queue_remove.put(client.channel.name)          
+                        self.queue_remove.put(client.channel.name)
+                # update
+                while not self.queue_update.empty():
+                    channel: Channel = self.queue_update.get()
+                    client: Client = clients[channel.name]
+                    if client.channel.game != channel.game:
+                        print('{} -> {}'.format(client.channel.game, channel.game))
+                    client.channel = channel              
                 # get read events
                 events = selector.select(timeout=1)
                 for key, mask in events:
@@ -63,6 +71,7 @@ class Worker:
                 self.viewer_count += (new_viewer_count - old_viewer_count)
                 self.channels[channel.name] = [new_viewer_count, self.worker_no]
                 self.logger.debug('{} {}({}→{}) → {} viewers'.format(self.name, channel.name, old_viewer_count, new_viewer_count, self.viewer_count))
+                self.queue_update.put(channel)
         except Exception as e:
             self.logger.error(str(e))
     

@@ -19,6 +19,7 @@ class Channel:
     def __init__(self, channel_data: dict, conn_info: dict):
         self.name = channel_data['user_login']
         self.viewer_count = channel_data['viewer_count']
+        self.game = channel_data['game_name']
         self.host = conn_info['chat_host']
         self.port = conn_info['chat_port']
         self.token = conn_info['chat_token']

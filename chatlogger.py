@@ -3,9 +3,9 @@ from datetime import datetime
 
 
 class ChatLogger(logging.Logger):
-    def chat(self, channel: str, msg: str, datetime: datetime):
+    def chat(self, channel: str, game: str, msg: str, datetime: datetime):
         for handler in self.handlers:
-            handler.chat(channel, msg, datetime)
+            handler.chat(channel, game, msg, datetime)
 
     def start_push(self):
         for handler in self.handlers:

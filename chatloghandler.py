@@ -63,9 +63,10 @@ class ChatLogHandler(logging.Handler):
             except:
                 traceback.print_exc(file=sys.stderr)
 
-    def chat(self, channel: str, msg: str, datetime: datetime):
+    def chat(self, channel: str, game: str, msg: str, datetime: datetime):
         doc = {
             'channel': channel,
+            'game': game,
             'message': msg,
             'datetime': datetime
         }
