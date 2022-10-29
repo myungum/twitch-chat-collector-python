@@ -38,6 +38,12 @@ class Worker:
                     clients[client.channel.name] = client
                     selector.register(client.sck, EVENT_READ, client.receive)
                     client.connect()
+                # update
+                while not self.queue_update.empty():
+                    channel: Channel = self.queue_update.get()
+                    if channel.name in clients:
+                        client: Client = clients[channel.name]
+                        client.channel = channel              
                 # unregister
                 for channel_name in list(clients.keys()):
                     client: Client = clients[channel_name]
@@ -48,13 +54,6 @@ class Worker:
                         selector.unregister(client.sck)
                         client.close()    
                         self.queue_remove.put(client.channel.name)
-                # update
-                while not self.queue_update.empty():
-                    channel: Channel = self.queue_update.get()
-                    client: Client = clients[channel.name]
-                    if client.channel.game != channel.game:
-                        print('{} -> {}'.format(client.channel.game, channel.game))
-                    client.channel = channel              
                 # get read events
                 events = selector.select(timeout=1)
                 for key, mask in events:
@@ -62,6 +61,8 @@ class Worker:
                     receive()
         except KeyboardInterrupt:
             pass
+        except Exception as e:
+            logger.error('({}) {}'.format(self.name, str(e)))
 
     def update_viewer_count(self, channel: Channel):
         try:
